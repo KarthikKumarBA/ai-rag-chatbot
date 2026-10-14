@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-wiki-config
+  labels:
+    {{- include "northwind.labels" . | nindent 4 }}
+data:
+  WIKI_DB_PATH: /app/data/wiki.db
+  RAG_API_URL: "http://{{ .Release.Name }}-rag:{{ .Values.rag.service.port }}"
+  WIKI_AUTO_SYNC: {{ .Values.wiki.autoSync | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-rag-config
+  labels:
+    {{- include "northwind.labels" . | nindent 4 }}
+data:
+  DOCS_SOURCE: wiki
+  WIKI_BASE_URL: "http://{{ .Release.Name }}-wiki:{{ .Values.wiki.service.port }}"
+  WIKI_PUBLIC_URL: {{ .Values.wiki.publicUrl | quote }}
+  INGEST_ON_STARTUP: {{ .Values.rag.ingestOnStartup | quote }}
+  WARM_UP_ON_STARTUP: "true"
+  VECTORSTORE_DIR: /app/vectorstore
+  # Disable Chroma's anonymous telemetry (no outbound calls, faster startup)
+  ANONYMIZED_TELEMETRY: "False"
+  {{- range $key, $value := .Values.rag.config }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

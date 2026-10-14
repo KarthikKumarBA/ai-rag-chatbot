@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge %}
+{% block content %}
+<section class="hero">
+  <h1>Welcome back, {{ user.name.split(' ')[0] }} 👋</h1>
+  <p>Northwind Wiki is where our teams document policies, runbooks and processes.
+     Click the 💬 button at the bottom right to ask the AI assistant.</p>
+</section>
+
+<h2>Spaces</h2>
+<div class="cards">
+  {% for s in spaces %}
+  <a class="card" href="/spaces/{{ s.key }}">
+    <div class="card-icon">{{ s.icon }}</div>
+    <div><strong>{{ s.name }}</strong><p>{{ s.description }}</p></div>
+  </a>
+  {% endfor %}
+</div>
+
+<h2>Recently updated</h2>
+<ul class="page-list">
+  {% for p in recent %}
+  <li>
+    <a href="/spaces/{{ p.space_key }}/pages/{{ p.slug }}">{{ p.title }}</a>
+    {{ badge(p.classification) }}
+    <span class="muted">{{ p.space_name }} · updated {{ p.updated_at }} by {{ p.author }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

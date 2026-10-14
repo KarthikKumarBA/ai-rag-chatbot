@@ -1,0 +1,9 @@
+{% macro badge(classification) -%}
+<span class="badge badge-{{ classification }}">
+  {%- if classification == 'confidential' %}🔒 Confidential{% elif classification == 'public' %}🟢 Public{% else %}🟡 Internal{% endif -%}
+</span>
+{%- endmacro %}
+
+{% macro label_list(items) -%}
+{% for item in items %}<span class="label">{{ item }}</span>{% endfor %}
+{%- endmacro %}

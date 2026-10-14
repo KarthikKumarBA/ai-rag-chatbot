@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-rag
+  labels:
+    {{- include "northwind.labels" . | nindent 4 }}
+    app.kubernetes.io/name: rag
+spec:
+  replicas: 1   # Chroma on a ReadWriteOnce volume: single replica
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "northwind.rag.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "northwind.labels" . | nindent 8 }}
+        app.kubernetes.io/name: rag
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "northwind.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        # Startup ingest reads the wiki, so wait until it is healthy
+        - name: wait-for-wiki
+          image: {{ .Values.initImage }}
+          command:
+            - sh
+            - -c
+            - until wget -q -O /dev/null http://{{ .Release.Name }}-wiki:{{ .Values.wiki.service.port }}/health; do echo "waiting for wiki"; sleep 3; done
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+      containers:
+        - name: rag
+          image: "{{ .Values.rag.image.repository }}:{{ .Values.rag.image.tag }}"
+          imagePullPolicy: {{ .Values.rag.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-rag-config
+          env:
+            {{- range $key := list "OPENAI_API_KEY" "ANTHROPIC_API_KEY" }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "northwind.secretName" $ }}
+                  key: {{ $key }}
+                  optional: true
+            {{- end }}
+            {{- range $key := list "RAG_API_TOKEN" "WIKI_API_TOKEN" }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "northwind.secretName" $ }}
+                  key: {{ $key }}
+            {{- end }}
+          # Startup ingest can take a while: give it up to 5 minutes before liveness applies
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.rag.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - name: vectorstore
+              mountPath: /app/vectorstore
+      volumes:
+        - name: vectorstore
+          {{- if .Values.rag.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-rag-vectorstore
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

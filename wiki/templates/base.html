@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Northwind Wiki{% endblock %}</title>
+  <link rel="stylesheet" href="/static/wiki.css">
+  <link rel="stylesheet" href="/static/chat-widget.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">📘 Northwind Wiki</a>
+    <form class="search" action="/search" method="get">
+      <input type="search" name="q" placeholder="Search the wiki" value="{{ q | default('') }}">
+    </form>
+    <details class="user-menu">
+      <summary>
+        <span class="avatar">{{ user.name[0] }}</span>
+        <span class="user-name">{{ user.name }}<small>{{ user.title }}</small></span>
+      </summary>
+      <ul>
+        <li class="menu-title">Switch user (demo)</li>
+        {% for u in users %}
+        <li><a href="/login/{{ u.username }}">{{ u.name }} <small>{{ u.title }} · {{ u.groups | join(', ') }}</small></a></li>
+        {% endfor %}
+      </ul>
+    </details>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar">
+      <h4>Spaces</h4>
+      <ul>
+        {% for s in spaces %}
+        <li><a href="/spaces/{{ s.key }}">{{ s.icon }} {{ s.name }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script src="/static/chat-widget.js" data-endpoint="/chat" data-title="Ask Northwind AI" defer></script>
+</body>
+</html>

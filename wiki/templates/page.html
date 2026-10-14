@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge, label_list %}
+{% block title %}{{ page.title }} - Northwind Wiki{% endblock %}
+{% block content %}
+<nav class="breadcrumb">
+  <a href="/">Home</a> / <a href="/spaces/{{ space.key }}">{{ space.name }}</a> / {{ page.title }}
+</nav>
+<div class="page-header">
+  <h1>{{ page.title }}</h1>
+  <a class="button" href="/spaces/{{ space.key }}/pages/{{ page.slug }}/edit">✏️ Edit</a>
+</div>
+<div class="page-meta">
+  {{ badge(page.classification) }} {{ label_list(page.labels) }}
+  <span class="muted">Version {{ page.version }} · last updated {{ page.updated_at }} by {{ page.author }}</span>
+</div>
+
+{% if page.classification == 'confidential' %}
+<div class="notice notice-restricted">
+  🔒 Restricted to: <strong>{{ page.restricted_to | join(', ') }}</strong>.
+  This page is <strong>not</strong> available to the AI assistant.
+</div>
+{% endif %}
+
+<article class="wiki-body">{{ html | safe }}</article>
+{% endblock %}

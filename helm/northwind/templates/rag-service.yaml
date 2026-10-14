@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-rag
+  labels:
+    {{- include "northwind.labels" . | nindent 4 }}
+    app.kubernetes.io/name: rag
+spec:
+  type: {{ .Values.rag.service.type }}
+  selector:
+    {{- include "northwind.rag.selector" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.rag.service.port }}
+      targetPort: http

@@ -1,0 +1,4 @@
+-r requirements.txt
+-r wiki/requirements.txt
+pytest
+streamlit

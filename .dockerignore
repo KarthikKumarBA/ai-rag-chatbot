@@ -1,0 +1,17 @@
+.git/
+.github/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.env.*
+vectorstore/
+wiki/
+helm/
+eks/
+tests/
+eval/
+Dockerfile
+.dockerignore
+docker-compose.yml

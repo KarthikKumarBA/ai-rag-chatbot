@@ -1,0 +1,19 @@
+# Docker Desktop kind cluster: images are loaded into the node, access via port-forward.
+wiki:
+  image:
+    pullPolicy: Never
+  publicUrl: "http://127.0.0.1:8088"
+
+rag:
+  image:
+    tag: "1.1"
+    pullPolicy: Never
+  config:
+    # Fastest in local tests (~1.6s per answer); passes the leak and refusal tests
+    OPENAI_MODEL_ID: gpt-4o-mini
+
+ingress:
+  enabled: false
+
+networkPolicy:
+  enabled: false

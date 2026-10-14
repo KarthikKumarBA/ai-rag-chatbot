@@ -1,0 +1,100 @@
+# Default values. Override with values-local.yaml or values-eks.yaml.
+
+# Secret with: OPENAI_API_KEY, ANTHROPIC_API_KEY (optional), WIKI_API_TOKEN, RAG_API_TOKEN
+# Create it before installing (see README). Never put keys in values files.
+secrets:
+  existingSecret: northwind-secrets
+
+wiki:
+  image:
+    repository: northwind-wiki
+    tag: "1.0"
+    pullPolicy: IfNotPresent
+  # URL users open in the browser; used for citation links in chat answers
+  publicUrl: "http://127.0.0.1:8088"
+  autoSync: true
+  service:
+    type: ClusterIP
+    port: 8088
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+rag:
+  image:
+    repository: ai-rag-chatbot
+    tag: "1.0"
+    pullPolicy: IfNotPresent
+  ingestOnStartup: true
+  service:
+    type: ClusterIP
+    port: 8000
+  persistence:
+    enabled: true
+    size: 2Gi
+    storageClass: ""
+  # Non-secret settings (same names as in .env)
+  config:
+    LLM_PROVIDER: openai
+    LLM_MAX_TOKENS: "400"
+    OPENAI_MODEL_ID: gpt-5.6-luna
+    ANTHROPIC_MODEL_ID: claude-haiku-4-5
+    BEDROCK_MODEL_ID: us.anthropic.claude-haiku-4-5-20251001-v1:0
+    AWS_REGION: us-east-1
+    EMBEDDING_PROVIDER: openai
+    OPENAI_EMBEDDING_MODEL: text-embedding-3-small
+    BEDROCK_EMBEDDING_MODEL: amazon.titan-embed-text-v2:0
+    CHUNK_SIZE: "800"
+    CHUNK_OVERLAP: "120"
+    TOP_K: "4"
+    MIN_RELEVANCE: "0.3"
+    HISTORY_TURNS: "3"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# Used by the RAG pod's init container to wait for the wiki
+initImage: busybox:1.36
+
+# Service account for the RAG pod (add an IRSA role annotation on EKS for Bedrock)
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Only the wiki is exposed; the RAG API stays internal
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ""
+  tls: []
+
+# Only the wiki pods may call the RAG API (needs a CNI that enforces NetworkPolicy)
+networkPolicy:
+  enabled: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]

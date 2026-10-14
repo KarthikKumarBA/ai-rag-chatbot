@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+jinja2
+markdown
+python-multipart
+httpx
+python-dotenv

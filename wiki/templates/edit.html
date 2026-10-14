@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit ' ~ page.title if page else 'New page' }} - Northwind Wiki{% endblock %}
+{% block content %}
+<nav class="breadcrumb">
+  <a href="/">Home</a> / <a href="/spaces/{{ space.key }}">{{ space.name }}</a> /
+  {{ 'Edit ' ~ page.title if page else 'New page' }}
+</nav>
+<h1>{{ 'Edit page' if page else 'Create page' }}</h1>
+
+<form class="edit-form" method="post"
+      action="{{ '/spaces/' ~ space.key ~ '/pages/' ~ page.slug ~ '/edit' if page else '/spaces/' ~ space.key ~ '/new' }}">
+  <label>Title
+    <input name="title" required maxlength="200" value="{{ page.title if page else '' }}">
+  </label>
+
+  <div class="form-row">
+    <label>Classification
+      <select name="classification">
+        {% for c in classifications %}
+        <option value="{{ c }}" {% if page and page.classification == c %}selected{% endif %}>{{ c | capitalize }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Restricted to groups (confidential only)
+      <input name="restricted_to" placeholder="hr, security" value="{{ page.restricted_to | join(', ') if page else '' }}">
+    </label>
+    <label>Labels
+      <input name="labels" placeholder="policy, leave" value="{{ page.labels | join(', ') if page else '' }}">
+    </label>
+  </div>
+
+  <label>Content (Markdown)
+    <textarea name="body" rows="22" required>{{ page.body if page else '' }}</textarea>
+  </label>
+  <p class="hint">
+    Wrap secrets or personal data in <code>&lt;!-- sensitive --&gt;</code> ... <code>&lt;!-- /sensitive --&gt;</code>
+    to keep that section away from the AI assistant. Confidential pages are never indexed.
+  </p>
+
+  <div class="form-actions">
+    <button class="button" type="submit">💾 Save</button>
+    <a href="{{ '/spaces/' ~ space.key ~ '/pages/' ~ page.slug if page else '/spaces/' ~ space.key }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

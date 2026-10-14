@@ -1,0 +1,64 @@
+# AWS EKS. Replace every <PLACEHOLDER> before installing.
+# Prerequisites: AWS Load Balancer Controller, EBS CSI driver add-on, gp3 StorageClass,
+# an ACM certificate for the wiki hostname, and DNS pointing at the ALB.
+
+wiki:
+  image:
+    repository: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/northwind-wiki
+    tag: "1.0"
+    pullPolicy: IfNotPresent
+  publicUrl: "https://<WIKI_HOSTNAME>"
+  persistence:
+    storageClass: gp3
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+rag:
+  image:
+    repository: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/ai-rag-chatbot
+    tag: "1.0"
+    pullPolicy: IfNotPresent
+  persistence:
+    storageClass: gp3
+    size: 10Gi
+  config:
+    # Switch to bedrock to use IRSA instead of API keys:
+    # LLM_PROVIDER: bedrock
+    # EMBEDDING_PROVIDER: bedrock
+    LLM_PROVIDER: openai
+    EMBEDDING_PROVIDER: openai
+    AWS_REGION: us-east-1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 768Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+serviceAccount:
+  create: true
+  annotations: {}
+    # For Bedrock with IRSA:
+    # eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/northwind-rag-bedrock
+
+ingress:
+  enabled: true
+  className: alb
+  host: <WIKI_HOSTNAME>
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing   # use "internal" for VPN-only access
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: <ACM_CERTIFICATE_ARN>
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+
+networkPolicy:
+  enabled: true

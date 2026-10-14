@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge, label_list %}
+{% block title %}{{ space.name }} - Northwind Wiki{% endblock %}
+{% block content %}
+<nav class="breadcrumb"><a href="/">Home</a> / {{ space.name }}</nav>
+<div class="page-header">
+  <h1>{{ space.icon }} {{ space.name }}</h1>
+  <a class="button" href="/spaces/{{ space.key }}/new">＋ Create page</a>
+</div>
+<p class="muted">{{ space.description }}</p>
+
+<table class="page-table">
+  <thead><tr><th>Page</th><th>Classification</th><th>Labels</th><th>Last updated</th></tr></thead>
+  <tbody>
+    {% for p in pages %}
+    <tr>
+      <td><a href="/spaces/{{ space.key }}/pages/{{ p.slug }}">{{ p.title }}</a></td>
+      <td>{{ badge(p.classification) }}</td>
+      <td>{{ label_list(p.labels) }}</td>
+      <td class="muted">{{ p.updated_at }} · {{ p.author }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="muted">No pages you can view in this space yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

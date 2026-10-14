@@ -1,0 +1,12 @@
+apiVersion: v2
+name: northwind
+description: Northwind Wiki (Confluence-like) with a RAG AI assistant
+type: application
+version: 0.1.0
+appVersion: "1.0"
+keywords:
+  - rag
+  - wiki
+  - langchain
+maintainers:
+  - name: Karthik

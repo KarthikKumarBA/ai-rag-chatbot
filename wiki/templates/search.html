@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge %}
+{% block title %}Search - Northwind Wiki{% endblock %}
+{% block content %}
+<h1>Search</h1>
+{% if q %}
+<p class="muted">{{ results | length }} result(s) for "{{ q }}"</p>
+<ul class="search-results">
+  {% for p in results %}
+  <li>
+    <a href="/spaces/{{ p.space_key }}/pages/{{ p.slug }}">{{ p.title }}</a> {{ badge(p.classification) }}
+    <div class="muted">{{ p.space_name }} · updated {{ p.updated_at }}</div>
+    <p>{{ p.snippet }}…</p>
+  </li>
+  {% else %}
+  <li class="muted">No pages found.</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">Type something in the search box.</p>
+{% endif %}
+{% endblock %}
