@@ -8,11 +8,15 @@ secrets:
 wiki:
   image:
     repository: northwind-wiki
-    tag: "1.0"
+    tag: "1.2"
     pullPolicy: IfNotPresent
   # URL users open in the browser; used for citation links in chat answers
   publicUrl: "http://127.0.0.1:8088"
   autoSync: true
+  # Chat questions per user + IP (0 = unlimited); every question costs LLM tokens
+  chatRateLimit:
+    perMinute: 10
+    perDay: 200
   service:
     type: ClusterIP
     port: 8088
@@ -31,7 +35,7 @@ wiki:
 rag:
   image:
     repository: ai-rag-chatbot
-    tag: "1.0"
+    tag: "1.2"
     pullPolicy: IfNotPresent
   ingestOnStartup: true
   service:
@@ -45,7 +49,7 @@ rag:
   config:
     LLM_PROVIDER: openai
     LLM_MAX_TOKENS: "400"
-    OPENAI_MODEL_ID: gpt-5.6-luna
+    OPENAI_MODEL_ID: gpt-4o-mini
     ANTHROPIC_MODEL_ID: claude-haiku-4-5
     BEDROCK_MODEL_ID: us.anthropic.claude-haiku-4-5-20251001-v1:0
     AWS_REGION: us-east-1

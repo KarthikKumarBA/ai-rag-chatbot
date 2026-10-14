@@ -40,7 +40,8 @@ def get_settings() -> Settings:
     wiki_base_url = os.getenv("WIKI_BASE_URL", "http://127.0.0.1:8088").rstrip("/")
     return Settings(
         llm_provider=os.getenv("LLM_PROVIDER", "openai").lower(),
-        openai_model_id=os.getenv("OPENAI_MODEL_ID", "gpt-5.6-luna"),
+        # gpt-4o-mini: fastest and cheapest in our evaluation, passes leak + refusal tests
+        openai_model_id=os.getenv("OPENAI_MODEL_ID", "gpt-4o-mini"),
         anthropic_model_id=os.getenv("ANTHROPIC_MODEL_ID", "claude-haiku-4-5"),
         bedrock_model_id=os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0"),
         aws_region=os.getenv("AWS_REGION", "us-east-1"),

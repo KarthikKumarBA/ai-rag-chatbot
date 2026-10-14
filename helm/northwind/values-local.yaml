@@ -6,11 +6,7 @@ wiki:
 
 rag:
   image:
-    tag: "1.1"
     pullPolicy: Never
-  config:
-    # Fastest in local tests (~1.6s per answer); passes the leak and refusal tests
-    OPENAI_MODEL_ID: gpt-4o-mini
 
 ingress:
   enabled: false

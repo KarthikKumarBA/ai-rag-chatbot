@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in - Northwind Wiki</title>
+  <link rel="stylesheet" href="/static/wiki.css">
+  <style>
+    .login-wrap { max-width: 820px; margin: 40px auto; padding: 0 16px; }
+    .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 28px; }
+    .login-card h1 { margin-top: 0; }
+    .login-users { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 16px; }
+    .login-user { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; text-align: left;
+                  padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+                  cursor: pointer; font: inherit; color: var(--text); }
+    .login-user:hover { border-color: var(--blue); box-shadow: 0 2px 8px rgba(9, 30, 66, .15); }
+    .login-user.current { border-color: var(--blue); background: #deebff; }
+    .login-user.main { border-width: 2px; border-color: var(--blue); }
+    .login-user small { color: var(--muted); }
+    .main-tag { font-size: 11px; font-weight: 700; color: #fff; background: var(--blue); padding: 1px 8px; border-radius: 10px; }
+    .login-note { font-size: 13px; color: var(--muted); margin: 16px 0 0; }
+  </style>
+</head>
+<body>
+  <header class="topbar"><span class="brand">📘 Northwind Wiki</span></header>
+  <main class="login-wrap">
+    <div class="login-card">
+      <h1>Sign in</h1>
+      <p class="hint">Choose an account. Each user belongs to different groups, so each one sees different pages.</p>
+
+      <form method="post" action="/login">
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="login-users">
+          {% for u in users %}
+          <button type="submit" name="username" value="{{ u.username }}"
+                  class="login-user{% if u.username == 'karthik' %} main{% endif %}{% if user and user.username == u.username %} current{% endif %}">
+            {% if u.username == 'karthik' %}<span class="main-tag">MAIN USER</span>{% endif %}
+            <strong>{{ u.name }}</strong>
+            <span>{{ u.title }}</span>
+            <small>Groups: {{ u.groups | join(', ') }}</small>
+            <small>{{ u.access }}</small>
+          </button>
+          {% endfor %}
+        </div>
+      </form>
+
+      <p class="login-note">🔐 Demo sign-in without passwords. In production this is the company SSO (OIDC/SAML) with MFA.</p>
+      {% if user %}
+      <p class="login-note">Signed in as <strong>{{ user.name }}</strong> · <a href="/">Back to wiki</a> · <a href="/logout">Log out</a></p>
+      {% endif %}
+    </div>
+  </main>
+</body>
+</html>

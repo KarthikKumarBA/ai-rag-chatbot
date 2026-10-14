@@ -8,6 +8,8 @@ data:
   WIKI_DB_PATH: /app/data/wiki.db
   RAG_API_URL: "http://{{ .Release.Name }}-rag:{{ .Values.rag.service.port }}"
   WIKI_AUTO_SYNC: {{ .Values.wiki.autoSync | quote }}
+  CHAT_RATE_PER_MINUTE: {{ .Values.wiki.chatRateLimit.perMinute | quote }}
+  CHAT_RATE_PER_DAY: {{ .Values.wiki.chatRateLimit.perDay | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -113,16 +113,27 @@ def seed_if_empty() -> None:
                 )
 
 
+# ---------- Permissions ----------
 def can_view(page: dict, user: dict) -> bool:
-    if page["classification"] != "confidential":
+    groups = set(user["groups"])
+    if "admins" in groups:
         return True
-    return bool(set(page["restricted_to"]) & set(user["groups"]))
+    if page["classification"] == "public":
+        return True
+    if page["classification"] == "internal":
+        return "employees" in groups
+    return bool(set(page["restricted_to"]) & groups)
+
+
+def can_edit(page: dict, user: dict) -> bool:
+    return "employees" in user["groups"] and can_view(page, user)
 
 
 def _visible(rows: list[dict], user: dict) -> list[dict]:
     return [p for p in map(_page, rows) if can_view(p, user)]
 
 
+# ---------- Queries ----------
 def list_spaces() -> list[dict]:
     return _query("SELECT * FROM spaces ORDER BY name")
 

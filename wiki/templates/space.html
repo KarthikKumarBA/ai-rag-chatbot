@@ -5,7 +5,7 @@
 <nav class="breadcrumb"><a href="/">Home</a> / {{ space.name }}</nav>
 <div class="page-header">
   <h1>{{ space.icon }} {{ space.name }}</h1>
-  <a class="button" href="/spaces/{{ space.key }}/new">＋ Create page</a>
+  {% if can_create %}<a class="button" href="/spaces/{{ space.key }}/new">＋ Create page</a>{% endif %}
 </div>
 <p class="muted">{{ space.description }}</p>
 
@@ -20,7 +20,7 @@
       <td class="muted">{{ p.updated_at }} · {{ p.author }}</td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="muted">No pages you can view in this space yet.</td></tr>
+    <tr><td colspan="4" class="muted">No pages you can view in this space.</td></tr>
     {% endfor %}
   </tbody>
 </table>

@@ -86,8 +86,28 @@ def test_build_index_is_repeatable(settings, embeddings):
     first = build_index(settings, embeddings)
     second = build_index(settings, embeddings)
     assert first["chunks"] == second["chunks"]
+    assert second["removed_chunks"] == 0
     store = get_vectorstore(settings, embeddings)
     assert len(store.get(include=[])["ids"]) == second["chunks"]
+
+
+def test_reingest_removes_deleted_documents(settings, embeddings):
+    build_index(settings, embeddings)
+    (settings.docs_dir / "notes.txt").unlink()
+
+    stats = build_index(settings, embeddings)
+
+    store = get_vectorstore(settings, embeddings)
+    sources = {m["source"] for m in store.get(include=["metadatas"])["metadatas"]}
+    assert sources == {"policy.md"}
+    assert stats["removed_chunks"] == 1
+
+
+def test_open_store_keeps_working_after_reingest(settings, embeddings, store):
+    # Regression: re-ingest used to drop the collection and break open handles
+    build_index(settings, embeddings)
+    results = retrieve(annual_leave_chunk(settings), settings, store)
+    assert results and "24 days" in results[0][0].page_content
 
 
 # ---------- Retrieval ----------
@@ -95,6 +115,7 @@ def test_retrieve_finds_matching_chunk(settings, store):
     results = retrieve(annual_leave_chunk(settings), settings, store)
     assert results
     assert "24 days" in results[0][0].page_content
+    assert 0.0 <= results[0][1] <= 1.0
     assert results[0][1] >= settings.min_relevance
 
 
@@ -116,6 +137,15 @@ def test_answer_returns_text_and_sources(settings, store):
 def test_no_relevant_context_skips_llm(settings, store):
     strict = replace(settings, min_relevance=1.01)
     result = answer_question("What is the share price?", None, strict, store, ExplodingLLM())
+    assert result["answer"] == NO_ANSWER
+    assert result["sources"] == []
+
+
+def test_refusal_hides_sources(settings, store):
+    # Chunks were retrieved, but the LLM refused: no sources should be shown
+    llm = FakeListChatModel(responses=[NO_ANSWER])
+    result = answer_question(annual_leave_chunk(settings), None, settings, store, llm)
+
     assert result["answer"] == NO_ANSWER
     assert result["sources"] == []
 

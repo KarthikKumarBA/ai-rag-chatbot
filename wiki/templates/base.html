@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Northwind Wiki{% endblock %}</title>
   <link rel="stylesheet" href="/static/wiki.css">
-  <link rel="stylesheet" href="/static/chat-widget.css">
+  {% if assistant_enabled %}<link rel="stylesheet" href="/static/chat-widget.css">{% endif %}
 </head>
 <body>
   <header class="topbar">
@@ -19,10 +19,10 @@
         <span class="user-name">{{ user.name }}<small>{{ user.title }}</small></span>
       </summary>
       <ul>
-        <li class="menu-title">Switch user (demo)</li>
-        {% for u in users %}
-        <li><a href="/login/{{ u.username }}">{{ u.name }} <small>{{ u.title }} · {{ u.groups | join(', ') }}</small></a></li>
-        {% endfor %}
+        <li class="menu-title">Signed in as {{ user.name }}</li>
+        <li class="menu-title">Groups: {{ user.groups | join(', ') }}</li>
+        <li><a href="/login?next={{ request.url.path | urlencode }}">🔁 Switch user</a></li>
+        <li><a href="/logout">🚪 Log out</a></li>
       </ul>
     </details>
   </header>
@@ -41,6 +41,8 @@
     </main>
   </div>
 
+  {% if assistant_enabled %}
   <script src="/static/chat-widget.js" data-endpoint="/chat" data-title="Ask Northwind AI" defer></script>
+  {% endif %}
 </body>
 </html>

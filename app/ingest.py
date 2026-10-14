@@ -49,7 +49,11 @@ def chunk_id(chunk: Document) -> str:
 
 
 def build_index(settings: Settings | None = None, embeddings=None, client=None) -> dict:
-    """Rebuild the collection from scratch so it always matches the source."""
+    """Sync the collection with the source.
+
+    Chunks are upserted by stable IDs and stale chunks are deleted. The collection itself
+    is never dropped, so requests that are reading it during a re-ingest keep working.
+    """
     settings = settings or get_settings()
     documents, report = load_source_documents(settings, client)
     if not documents:
@@ -62,17 +66,21 @@ def build_index(settings: Settings | None = None, embeddings=None, client=None) 
         redactions += stats["redactions"]
 
     chunks = split_documents(documents, settings.chunk_size, settings.chunk_overlap)
+    ids = [chunk_id(c) for c in chunks]
 
     store = get_vectorstore(settings, embeddings)
-    store.delete_collection()
-    store = get_vectorstore(settings, embeddings)
-    store.add_documents(chunks, ids=[chunk_id(c) for c in chunks])
+    existing_ids = set(store.get(include=[])["ids"])
+    store.add_documents(chunks, ids=ids)  # upsert: same ID replaces the old chunk
+    stale_ids = sorted(existing_ids - set(ids))
+    if stale_ids:
+        store.delete(ids=stale_ids)
 
     sources = sorted({c.metadata["source"] for c in chunks})
     return {
         "source": settings.docs_source,
         "documents": len(sources),
         "chunks": len(chunks),
+        "removed_chunks": len(stale_ids),
         "skipped_restricted": report["skipped_restricted"],
         "sensitive_blocks_removed": blocks_removed,
         "redactions": redactions,
@@ -87,7 +95,8 @@ def main() -> None:
     stats = build_index(settings)
     print(f"Indexed {stats['documents']} documents into {stats['chunks']} chunks "
           f"(collection: {stats['collection']})")
-    print(f"Skipped restricted pages:  {len(stats['skipped_restricted'])} "
+    print(f"Removed stale chunks:       {stats['removed_chunks']}")
+    print(f"Skipped restricted pages:   {len(stats['skipped_restricted'])} "
           f"{stats['skipped_restricted'] or ''}")
     print(f"Sensitive sections removed: {stats['sensitive_blocks_removed']}")
     print(f"Pattern redactions:         {stats['redactions']}")
