@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run pytest
+        run: python -m pytest -v
+
+  rag-image:
+    name: Build and smoke-test RAG API image
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Build image
+        run: docker build -t ai-rag-chatbot:${{ github.sha }} .
+
+      - name: Run container (no ingest, dummy key - no real LLM calls in CI)
+        run: |
+          docker run -d --name rag -p 8000:8000 \
+            -e RAG_API_TOKEN=ci-token \
+            -e OPENAI_API_KEY=dummy \
+            -e INGEST_ON_STARTUP=false \
+            -e WARM_UP_ON_STARTUP=false \
+            ai-rag-chatbot:${{ github.sha }}
+
+      - name: Wait for healthy status
+        run: |
+          for i in $(seq 1 12); do
+            STATUS=$(docker inspect --format '{{.State.Health.Status}}' rag)
+            echo "Attempt $i: $STATUS"
+            if [ "$STATUS" = "healthy" ]; then exit 0; fi
+            sleep 5
+          done
+          docker logs rag
+          exit 1
+
+      - name: Check endpoints and auth
+        run: |
+          curl -f http://127.0.0.1:8000/health
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/stats)
+          echo "Without token: $CODE"
+          [ "$CODE" = "401" ]
+          curl -f -H "Authorization: Bearer ci-token" http://127.0.0.1:8000/stats
+
+      - name: Show logs
+        if: always()
+        run: docker logs rag
+
+  wiki-image:
+    name: Build and smoke-test wiki image
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Build image
+        run: docker build -t northwind-wiki:${{ github.sha }} wiki
+
+      - name: Run container
+        run: |
+          docker run -d --name wiki -p 8088:8088 \
+            -e WIKI_API_TOKEN=ci-token \
+            -e WIKI_AUTO_SYNC=false \
+            northwind-wiki:${{ github.sha }}
+
+      - name: Wait for healthy status
+        run: |
+          for i in $(seq 1 12); do
+            STATUS=$(docker inspect --format '{{.State.Health.Status}}' wiki)
+            echo "Attempt $i: $STATUS"
+            if [ "$STATUS" = "healthy" ]; then exit 0; fi
+            sleep 5
+          done
+          docker logs wiki
+          exit 1
+
+      - name: Check sign-in, auth and confidentiality
+        run: |
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8088/)
+          echo "Home without sign-in: $CODE (expect 303 redirect to /login)"
+          [ "$CODE" = "303" ]
+          curl -sf http://127.0.0.1:8088/login > /dev/null
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8088/rest/api/pages)
+          echo "REST API without token: $CODE"
+          [ "$CODE" = "401" ]
+          curl -sf -H "Authorization: Bearer ci-token" http://127.0.0.1:8088/rest/api/pages \
+            | python3 -c "import sys, json; p = json.load(sys.stdin)['results']; \
+          bad = [x['title'] for x in p if x['classification'] == 'confidential']; \
+          print(len(p), 'pages, confidential:', bad); sys.exit(1 if bad else 0)"
+
+      - name: Show logs
+        if: always()
+        run: docker logs wiki
