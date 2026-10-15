@@ -23,3 +23,5 @@ aws eks update-kubeconfig --name karthik-eks --region ap-south-1
 kubectl get pods,pvc,ingress -n ai-rag-chatbot
 kubectl logs -n ai-rag-chatbot deploy/northwind-rag -c rag --tail=20
 ```
+
+> Full step-by-step EKS runbook (bring up, deploy, test, tear down): **aws-infra/README.md**
