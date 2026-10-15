@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cd-northwind
+  group: cd-ai-rag-chatbot
   cancel-in-progress: false
 
 env:
@@ -22,7 +22,7 @@ env:
   CLUSTER: ${{ vars.EKS_CLUSTER_NAME }}
   REGISTRY: ${{ vars.ECR_REGISTRY }}
   IMAGE_TAG: ${{ github.sha }}
-  NAMESPACE: northwind
+  NAMESPACE: ai-rag-chatbot
   RELEASE: northwind
 
 jobs:
@@ -139,7 +139,7 @@ jobs:
         run: |
           kubectl get pods,pvc,ingress -n "$NAMESPACE"
           {
-            echo "### Northwind deployed"
+            echo "### Northwind deployed (namespace \`$NAMESPACE\`)"
             echo "- Wiki: http://$ALB_HOST (open from your allowed IP: \`${{ vars.ALLOWED_CIDR }}\`)"
             echo "- Image tag: \`$IMAGE_TAG\`"
             echo "- The first time, DNS for the ALB can take 1-3 minutes."

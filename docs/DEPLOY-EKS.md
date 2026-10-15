@@ -1,6 +1,6 @@
 # Deploy Northwind to AWS EKS
 
-The cluster, ECR repositories and the deploy role come from the **aws-infra** repository.
+The cluster, ECR repositories, the `ai-rag-chatbot` namespace and the deploy role come from the **aws-infra** repository.
 
 ## GitHub settings (once)
 
@@ -15,3 +15,11 @@ GitHub → **Actions** → **CD** → **Run workflow** → `deploy` or `uninstal
 The run summary shows the wiki URL (an ALB that only your IP can open).
 
 If your IP changes: update `ALLOWED_CIDR` and run `deploy` again.
+
+## Inspect
+
+```bash
+aws eks update-kubeconfig --name karthik-eks --region ap-south-1
+kubectl get pods,pvc,ingress -n ai-rag-chatbot
+kubectl logs -n ai-rag-chatbot deploy/northwind-rag -c rag --tail=20
+```
