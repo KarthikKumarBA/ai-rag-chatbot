@@ -5,10 +5,13 @@ metadata:
   name: {{ .Release.Name }}-wiki
   labels:
     {{- include "northwind.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
   annotations:
+    {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
+    {{- with .Values.ingress.allowedCidrs }}
+    alb.ingress.kubernetes.io/inbound-cidrs: {{ join "," . | quote }}
+    {{- end }}
 spec:
   {{- with .Values.ingress.className }}
   ingressClassName: {{ . }}
