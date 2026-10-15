@@ -992,3 +992,247 @@ The endpoint must accept `POST {question, session_id}` and return `{answer, sour
 - [ ] PostgreSQL + pgvector for multiple replicas
 - [ ] CI pushes images to ECR and deploys with Helm
 - [ ] Detailed EKS guide
+## Part 11 - Troubleshooting
+
+| Problem | Cause | Fix |
+|---|---|---|
+| `python` opens the Microsoft Store | Windows alias | Part 1.2 step 2, reopen Git Bash |
+| `(.venv)` not shown / `ModuleNotFoundError` | Environment not activated | Part 3.5, then `python -m pip install -r requirements-dev.txt` |
+| `401 ... Incorrect API key provided: your-ope...` | Placeholder in `.env` | Part 3.4 - paste the real key and save |
+| `insufficient_quota` | No OpenAI credit | Part 2.1 step 2 |
+| `model ... not available` | Model not allowed in the OpenAI project | Part 2.1 step 5 |
+| Always sent to the Sign in page | Not signed in / session expired (8 h) | Click a user |
+| No 💬 button | Signed in as Vikram (contractor) | Switch to an employee |
+| 💬 *assistant is not available* | AI program not running | A: Window 2. C: `kubectl get pods -n northwind` |
+| 💬 *asking questions too quickly* | Rate limit | Wait 60 seconds |
+| Blank page on 8088 | Wiki not running | A: Window 1. C: port-forward (7.7) |
+| `{"detail":"Not Found"}` on :8000 | Normal - no home page | Use `/health` |
+| Port 8088 busy | Another wiki or port-forward | `netstat -ano \| grep :8088` → `taskkill //PID <pid> //F` |
+| `ErrImageNeverPull` | Image not loaded / tag mismatch | Repeat 7.2-7.3 |
+| `No such container: desktop-control-plane` | System containers hidden | Docker Desktop → Kubernetes → **Show system containers** |
+| `helm: command not found` | Helm not on the Git Bash PATH | Part 1.6 |
+| Port-forward stops after an upgrade | Pod replaced | Run it again |
+| `\` line breaks fail in PowerShell | Commands are for Git Bash | Use Git Bash |
+| Bot doesn't know about an edit | Re-index did not run | A: `python -m app.ingest` · C: `kubectl exec -n northwind deploy/northwind-rag -c rag -- python -m app.ingest` |
+
+---
+
+## Part 12 - Clean up
+
+| Option | Command |
+|---|---|
+| A | Ctrl+C; fresh start: `rm -rf vectorstore wiki/data` |
+| B | `docker compose down -v` |
+| C | `helm uninstall northwind -n northwind && kubectl delete namespace northwind` |
+
+---
+
+## Part 13 - Deploy to AWS EKS
+
+The same Helm chart is deployed by **GitHub Actions** into namespace **`ai-rag-chatbot`** on the shared EKS cluster created by the **aws-infra** repository. Everything is started from the **GitHub web UI**.
+
+| Step | Where | Click |
+|---|---|---|
+| 1 | aws-infra | **Actions** → **Bootstrap** → **Run workflow** → action `apply` |
+| 2 | aws-infra | **Actions** → **Terraform** → **Run workflow** → action `apply` (about 20 min) |
+| 3 | this repo (once) | **Settings** → **Secrets and variables** → **Actions** → add the variables and secrets listed in `docs/DEPLOY-EKS.md` |
+| 4 | this repo | **Actions** → **CD** → **Run workflow** → action `deploy` |
+| 5 | browser | Open the **Wiki** URL from the run Summary (`http://k8s-sharedap-....elb.amazonaws.com`) → sign in as Karthik |
+| Remove | this repo | **Actions** → **CD** → **Run workflow** → action `uninstall` |
+| Remove all | aws-infra | **Terraform** `destroy` (confirm `destroy`), then **Bootstrap** `destroy` (confirm `destroy`) |
+
+> The cluster costs about **$0.20/hour** while it exists. Uninstall both apps and destroy the infrastructure when you finish.
+
+Details: `docs/DEPLOY-EKS.md` (this repo) and the full runbook in **aws-infra/README.md**.
+
+---
+
+## Part 14 - Reference
+
+### Repository structure
+
+```
+ai-rag-chatbot/
+├── app/                    # AI assistant (RAG)
+│   ├── api.py              # /ask /ingest /stats (token auth, warm-up)
+│   ├── rag.py              # Follow-ups -> retrieve -> answer with citations
+│   ├── ingest.py           # Load -> sanitize -> split -> embed -> upsert
+│   ├── sanitize.py         # Sensitive sections + PII / secret removal
+│   ├── sources/            # wiki.py (wiki REST API), files.py
+│   ├── llm.py, vectorstore.py, config.py
+│   ├── cli.py, ui.py       # Terminal and Streamlit chat
+│   └── evaluate.py         # Quality and leak tests
+├── wiki/                   # Northwind Wiki (sign-in, pages, REST API, /chat, rate limit)
+├── helm/northwind/         # Helm chart (values-local.yaml, values-eks.yaml)
+├── docs/DEPLOY-EKS.md      # EKS deployment for this repo
+├── eval/questions.jsonl    # Evaluation questions
+├── tests/                  # Automated tests
+├── Dockerfile              # AI assistant image (wiki/Dockerfile for the wiki)
+├── docker-compose.yml
+├── .env.example
+└── .github/workflows/      # ci.yml (automatic), cd.yml (manual deploy / uninstall)
+```
+
+### Settings in `.env`
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `LLM_PROVIDER` | `openai` | `openai`, `anthropic` or `bedrock` |
+| `OPENAI_MODEL_ID` | `gpt-4o-mini` | OpenAI answer model |
+| `ANTHROPIC_MODEL_ID` | `claude-haiku-4-5` | Claude answer model |
+| `EMBEDDING_PROVIDER` | `openai` | `openai` or `bedrock` (change → re-index) |
+| `TOP_K` | `4` | Chunks read per question |
+| `MIN_RELEVANCE` | `0.3` | Below this, a chunk is ignored |
+| `CHAT_RATE_PER_MINUTE` / `CHAT_RATE_PER_DAY` | `10` / `200` | Questions per user |
+| `WIKI_AUTO_SYNC` | `true` | Re-index after every page save |
+
+### APIs
+
+**Wiki** - `/rest/api/*` needs `Authorization: Bearer <WIKI_API_TOKEN>`
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET / POST | `/login` | Sign-in page / sign in |
+| GET | `/logout` | Sign out |
+| GET | `/rest/api/pages` | Pages for integrations (never confidential) |
+| POST | `/chat` | 💬 widget (signed-in employees, rate limited) |
+
+**AI assistant** - needs `Authorization: Bearer <RAG_API_TOKEN>`
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Health check (no token) |
+| POST | `/ask` | `{"question": "...", "session_id": "optional"}` |
+| POST | `/ingest` | Re-index the wiki |
+| GET | `/stats` | Chunks and providers |
+
+### Reuse the 💬 widget in another app
+
+```html
+<link rel="stylesheet" href="/static/chat-widget.css">
+<script src="/static/chat-widget.js" data-endpoint="/chat" data-title="Ask AI" defer></script>
+```
+
+The endpoint must accept `POST {question, session_id}` and return `{answer, sources, session_id}`. Keep the assistant token server-side.
+## Part 11 - Troubleshooting
+
+| Problem | Cause | Fix |
+|---|---|---|
+| `python` opens the Microsoft Store | Windows alias | Part 1.2 step 2, reopen Git Bash |
+| `(.venv)` not shown / `ModuleNotFoundError` | Environment not activated | Part 3.5, then `python -m pip install -r requirements-dev.txt` |
+| `401 ... Incorrect API key provided: your-ope...` | Placeholder in `.env` | Part 3.4 - paste the real key and save |
+| `insufficient_quota` | No OpenAI credit | Part 2.1 step 2 |
+| `model ... not available` | Model not allowed in the OpenAI project | Part 2.1 step 5 |
+| Always sent to the Sign in page | Not signed in / session expired (8 h) | Click a user |
+| No 💬 button | Signed in as Vikram (contractor) | Switch to an employee |
+| 💬 *assistant is not available* | AI program not running | A: Window 2. C: `kubectl get pods -n northwind` |
+| 💬 *asking questions too quickly* | Rate limit | Wait 60 seconds |
+| Blank page on 8088 | Wiki not running | A: Window 1. C: port-forward (7.7) |
+| `{"detail":"Not Found"}` on :8000 | Normal - no home page | Use `/health` |
+| Port 8088 busy | Another wiki or port-forward | `netstat -ano \| grep :8088` → `taskkill //PID <pid> //F` |
+| `ErrImageNeverPull` | Image not loaded / tag mismatch | Repeat 7.2-7.3 |
+| `No such container: desktop-control-plane` | System containers hidden | Docker Desktop → Kubernetes → **Show system containers** |
+| `helm: command not found` | Helm not on the Git Bash PATH | Part 1.6 |
+| Port-forward stops after an upgrade | Pod replaced | Run it again |
+| `\` line breaks fail in PowerShell | Commands are for Git Bash | Use Git Bash |
+| Bot doesn't know about an edit | Re-index did not run | A: `python -m app.ingest` · C: `kubectl exec -n northwind deploy/northwind-rag -c rag -- python -m app.ingest` |
+
+---
+
+## Part 12 - Clean up
+
+| Option | Command |
+|---|---|
+| A | Ctrl+C; fresh start: `rm -rf vectorstore wiki/data` |
+| B | `docker compose down -v` |
+| C | `helm uninstall northwind -n northwind && kubectl delete namespace northwind` |
+
+---
+
+## Part 13 - Deploy to AWS EKS
+
+The same Helm chart is deployed by **GitHub Actions** into namespace **`ai-rag-chatbot`** on the shared EKS cluster created by the **aws-infra** repository. Everything is started from the **GitHub web UI**.
+
+| Step | Where | Click |
+|---|---|---|
+| 1 | aws-infra | **Actions** → **Bootstrap** → **Run workflow** → action `apply` |
+| 2 | aws-infra | **Actions** → **Terraform** → **Run workflow** → action `apply` (about 20 min) |
+| 3 | this repo (once) | **Settings** → **Secrets and variables** → **Actions** → add the variables and secrets listed in `docs/DEPLOY-EKS.md` |
+| 4 | this repo | **Actions** → **CD** → **Run workflow** → action `deploy` |
+| 5 | browser | Open the **Wiki** URL from the run Summary (`http://k8s-sharedap-....elb.amazonaws.com`) → sign in as Karthik |
+| Remove | this repo | **Actions** → **CD** → **Run workflow** → action `uninstall` |
+| Remove all | aws-infra | **Terraform** `destroy` (confirm `destroy`), then **Bootstrap** `destroy` (confirm `destroy`) |
+
+> The cluster costs about **$0.20/hour** while it exists. Uninstall both apps and destroy the infrastructure when you finish.
+
+Details: `docs/DEPLOY-EKS.md` (this repo) and the full runbook in **aws-infra/README.md**.
+
+---
+
+## Part 14 - Reference
+
+### Repository structure
+
+```
+ai-rag-chatbot/
+├── app/                    # AI assistant (RAG)
+│   ├── api.py              # /ask /ingest /stats (token auth, warm-up)
+│   ├── rag.py              # Follow-ups -> retrieve -> answer with citations
+│   ├── ingest.py           # Load -> sanitize -> split -> embed -> upsert
+│   ├── sanitize.py         # Sensitive sections + PII / secret removal
+│   ├── sources/            # wiki.py (wiki REST API), files.py
+│   ├── llm.py, vectorstore.py, config.py
+│   ├── cli.py, ui.py       # Terminal and Streamlit chat
+│   └── evaluate.py         # Quality and leak tests
+├── wiki/                   # Northwind Wiki (sign-in, pages, REST API, /chat, rate limit)
+├── helm/northwind/         # Helm chart (values-local.yaml, values-eks.yaml)
+├── docs/DEPLOY-EKS.md      # EKS deployment for this repo
+├── eval/questions.jsonl    # Evaluation questions
+├── tests/                  # Automated tests
+├── Dockerfile              # AI assistant image (wiki/Dockerfile for the wiki)
+├── docker-compose.yml
+├── .env.example
+└── .github/workflows/      # ci.yml (automatic), cd.yml (manual deploy / uninstall)
+```
+
+### Settings in `.env`
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `LLM_PROVIDER` | `openai` | `openai`, `anthropic` or `bedrock` |
+| `OPENAI_MODEL_ID` | `gpt-4o-mini` | OpenAI answer model |
+| `ANTHROPIC_MODEL_ID` | `claude-haiku-4-5` | Claude answer model |
+| `EMBEDDING_PROVIDER` | `openai` | `openai` or `bedrock` (change → re-index) |
+| `TOP_K` | `4` | Chunks read per question |
+| `MIN_RELEVANCE` | `0.3` | Below this, a chunk is ignored |
+| `CHAT_RATE_PER_MINUTE` / `CHAT_RATE_PER_DAY` | `10` / `200` | Questions per user |
+| `WIKI_AUTO_SYNC` | `true` | Re-index after every page save |
+
+### APIs
+
+**Wiki** - `/rest/api/*` needs `Authorization: Bearer <WIKI_API_TOKEN>`
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET / POST | `/login` | Sign-in page / sign in |
+| GET | `/logout` | Sign out |
+| GET | `/rest/api/pages` | Pages for integrations (never confidential) |
+| POST | `/chat` | 💬 widget (signed-in employees, rate limited) |
+
+**AI assistant** - needs `Authorization: Bearer <RAG_API_TOKEN>`
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Health check (no token) |
+| POST | `/ask` | `{"question": "...", "session_id": "optional"}` |
+| POST | `/ingest` | Re-index the wiki |
+| GET | `/stats` | Chunks and providers |
+
+### Reuse the 💬 widget in another app
+
+```html
+<link rel="stylesheet" href="/static/chat-widget.css">
+<script src="/static/chat-widget.js" data-endpoint="/chat" data-title="Ask AI" defer></script>
+```
+
+The endpoint must accept `POST {question, session_id}` and return `{answer, sources, session_id}`. Keep the assistant token server-side.
